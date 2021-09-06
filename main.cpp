@@ -52,6 +52,7 @@ void board_draw();
 void board_reset();
 int board_position_is_empty(int x, int y);
 int board_insert_at(int row, int column, int value);
+int board_is_full();
 
 void reset_players();
 
@@ -63,7 +64,7 @@ void sleep_ms(int milliseconds);
 
 int main()
 {
-    int option;
+    short int option;
     do
     {
         system("cls||clear");
@@ -75,7 +76,7 @@ int main()
         puts("\t\t\t~                            *");
         puts("\t\t\t*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~\n\n\n");
         printf("Select menu: ");
-        scanf("%d", &option);
+        scanf("%hd", &option);
         puts("");
         switch (option)
         {
@@ -149,10 +150,22 @@ input_round:
                     player_one_round_score++;
                     strcpy(current_player, player_one.name);
                 }
-                else
+                else if (winner == 1)
                 {
                     player_two_round_score++;
                     strcpy(current_player, player_two.name);
+                }
+                else if (winner == 2)
+                {
+                    // If the board is full and there is no winners, then it's a draw
+                    player_one_round_score++;
+                    player_two_round_score++;
+
+                    system("cls||clear");
+                    puts("==== Ronde Berakhir dengan Draw ====");
+                    printf("%s: %d\n", player_one.name, player_one_round_score);
+                    printf("%s: %d\n", player_two.name, player_two_round_score);
+                    break;
                 }
 
                 system("cls||clear");
@@ -402,6 +415,7 @@ void menu_leaderboard()
 
     do
     {
+    leaderboard:
         system("cls||clear");
         puts("\t\t\t*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~");
         puts("\t\t\t~         Leaderboard        *");
@@ -440,8 +454,13 @@ void menu_leaderboard()
         case 4:
             puts("\n\n1. Ascending");
             puts("2. Descending");
+            puts("3. Back");
             printf("\n\n Select menu: ");
             scanf("%hd", &descending);
+            if (descending == 3)
+            {
+                goto leaderboard;
+            }
             sort_leaderboard(leaderboard_players, 0, size - 1, option, descending - 1);
         };
     } while (option != 5);
@@ -500,26 +519,31 @@ char parse_xo(int xo)
 
 int check_winner()
 {
-    for (int i = 0; i < 3; i++) /* check baris */
+    for (int i = 0; i < 3; i++) // Check row
         if (titao_game.board[i][0] == titao_game.board[i][1] &&
             titao_game.board[i][0] == titao_game.board[i][2])
             return titao_game.board[i][0];
 
-    for (int i = 0; i < 3; i++) /* check kolom */
+    for (int i = 0; i < 3; i++) // Check column
         if (titao_game.board[0][i] == titao_game.board[1][i] &&
             titao_game.board[0][i] == titao_game.board[2][i])
             return titao_game.board[0][i];
 
-    /* Check diagonal dari kiri atas ke kanan bawah */
+    // Check diagonal
     if (titao_game.board[0][0] == titao_game.board[1][1] &&
         titao_game.board[1][1] == titao_game.board[2][2])
         return titao_game.board[0][0];
 
-    /* Check diagonal dari kanan atas ke kiri bawah */
+    // Check diagonal
     if (titao_game.board[0][2] == titao_game.board[1][1] &&
         titao_game.board[1][1] == titao_game.board[2][0])
         return titao_game.board[0][2];
 
+    // Check if board is full and no winner
+    if (board_is_full() == 1)
+    {
+        return 2;
+    }
     return 0;
 }
 
