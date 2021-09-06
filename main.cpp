@@ -45,7 +45,7 @@ void menu_play();
 void menu_leaderboard();
 void menu_exit();
 
-char parse_player(int xo);
+char parse_xo(int xo);
 int check_winner();
 
 void board_draw();
@@ -463,17 +463,17 @@ void board_draw()
     printf("___________________\n");
 
     printf("|     |     |     |\n");
-    printf("|  %c  |  %c  |  %c  |\n", parse_player(titao_game.board[0][0]), parse_player(titao_game.board[0][1]), parse_player(titao_game.board[0][2]));
+    printf("|  %c  |  %c  |  %c  |\n", parse_xo(titao_game.board[0][0]), parse_xo(titao_game.board[0][1]), parse_xo(titao_game.board[0][2]));
 
     printf("|_____|_____|_____|\n");
     printf("|     |     |     |\n");
 
-    printf("|  %c  |  %c  |  %c  |\n", parse_player(titao_game.board[1][0]), parse_player(titao_game.board[1][1]), parse_player(titao_game.board[1][2]));
+    printf("|  %c  |  %c  |  %c  |\n", parse_xo(titao_game.board[1][0]), parse_xo(titao_game.board[1][1]), parse_xo(titao_game.board[1][2]));
 
     printf("|_____|_____|_____|\n");
     printf("|     |     |     |\n");
 
-    printf("|  %c  |  %c  |  %c  |\n", parse_player(titao_game.board[2][0]), parse_player(titao_game.board[2][1]), parse_player(titao_game.board[2][2]));
+    printf("|  %c  |  %c  |  %c  |\n", parse_xo(titao_game.board[2][0]), parse_xo(titao_game.board[2][1]), parse_xo(titao_game.board[2][2]));
 
     printf("|_____|_____|_____|\n\n");
 }
@@ -489,7 +489,7 @@ void board_reset()
     }
 }
 
-char parse_player(int xo)
+char parse_xo(int xo)
 {
     if (xo == -1)
         return 'X';
