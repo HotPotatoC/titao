@@ -50,6 +50,7 @@ void reset_players();
 unsigned int leaderboard_size(FILE *fp);
 void sort_leaderboard(player_t *leaderboard_players, int left, int right, int option, int descending);
 void merge_leaderboard(player_t *leaderboard_players, int left, int mid, int right, int option, int descending);
+void update_leaderboard();
 
 void sleep_ms(int milliseconds);
 
@@ -228,127 +229,7 @@ input_round:
     }
 
     // Save to leaderboards
-    FILE *leaderboards_fp = fopen(titao_game.leaderboard_file_path, "a+");
-
-    // If the file is empty then we can assume that it is the first time the user is playing
-    // and we can write the player's name and score to the file
-    if (fgetc(leaderboards_fp) == EOF)
-    {
-        puts("EMPTY");
-        fprintf(leaderboards_fp, "%s#%ld#%ld#%ld\n", player_one.name, player_one.win_count, player_one.lost_count, player_one.draw_count);
-        fprintf(leaderboards_fp, "%s#%ld#%ld#%ld\n", player_two.name, player_two.win_count, player_two.lost_count, player_two.draw_count);
-        fclose(leaderboards_fp);
-        return;
-    }
-
-    unsigned int lines = leaderboard_size(leaderboards_fp);
-
-    player_t *leaderboard_players = (player_t *)malloc(lines * sizeof(player_t));
-    if (leaderboard_players == NULL)
-    {
-        puts("Error allocating memory");
-        return;
-    }
-
-    // Rewind the file pointer to the beginning of the file
-    rewind(leaderboards_fp);
-
-    // Set all values to 0
-    memset(leaderboard_players, 0, sizeof(player_t) * lines);
-
-    int i = 0;
-    while (fscanf(leaderboards_fp, "%[^#]#%ld#%ld#%ld\n",
-                  leaderboard_players[i].name, &leaderboard_players[i].win_count,
-                  &leaderboard_players[i].lost_count, &leaderboard_players[i].draw_count) != EOF)
-    {
-        i++;
-    }
-
-    int found_player_one = -1;
-    int found_player_two = -1;
-    for (int i = 0; i < lines; i++)
-    {
-        if (strcmp(player_one.name, leaderboard_players[i].name) == 0)
-        {
-            leaderboard_players[i].win_count += player_one.win_count;
-            leaderboard_players[i].lost_count += player_one.lost_count;
-            leaderboard_players[i].draw_count += player_one.draw_count;
-            found_player_one = 1;
-        }
-        else if (strcmp(player_two.name, leaderboard_players[i].name) == 0)
-        {
-            leaderboard_players[i].win_count += player_two.win_count;
-            leaderboard_players[i].lost_count += player_two.lost_count;
-            leaderboard_players[i].draw_count += player_two.draw_count;
-            found_player_two = 1;
-        }
-    }
-
-    if (found_player_one == -1)
-    {
-        lines++;
-    }
-    if (found_player_two == -1)
-    {
-        lines++;
-    }
-
-    // Increase the size of the array by the amount of new lines
-    leaderboard_players = (player_t *)realloc(leaderboard_players, sizeof(player_t) * lines);
-
-    if (found_player_one == -1 && found_player_two == -1)
-    {
-        player_t tmp_player;
-        strcpy(tmp_player.name, player_one.name);
-        tmp_player.win_count = player_one.win_count;
-        tmp_player.lost_count = player_one.lost_count;
-        tmp_player.draw_count = player_one.draw_count;
-        leaderboard_players[lines - 1] = tmp_player;
-
-        strcpy(tmp_player.name, player_two.name);
-        tmp_player.win_count = player_two.win_count;
-        tmp_player.lost_count = player_two.lost_count;
-        tmp_player.draw_count = player_two.draw_count;
-        leaderboard_players[lines - 2] = tmp_player;
-    }
-    else if (found_player_one == -1)
-    {
-        player_t tmp_player;
-        strcpy(tmp_player.name, player_one.name);
-        tmp_player.win_count = player_one.win_count;
-        tmp_player.lost_count = player_one.lost_count;
-        tmp_player.draw_count = player_one.draw_count;
-        leaderboard_players[lines - 1] = tmp_player;
-    }
-    else if (found_player_two == -1)
-    {
-        player_t tmp_player;
-        strcpy(tmp_player.name, player_two.name);
-        tmp_player.win_count = player_two.win_count;
-        tmp_player.lost_count = player_two.lost_count;
-        tmp_player.draw_count = player_two.draw_count;
-        leaderboard_players[lines - 1] = tmp_player;
-    }
-
-    // Sort the array by wins and descending by default
-    sort_leaderboard(leaderboard_players, 0, lines - 1, 2, 1);
-
-    // Rewind the file pointer to the beginning of the file
-    rewind(leaderboards_fp);
-
-    // Truncate the file and write the new data
-    freopen(titao_game.leaderboard_file_path, "w", leaderboards_fp);
-
-    // Write the new leaderboard to the file
-    for (int i = 0; i < lines; i++)
-    {
-        fprintf(leaderboards_fp, "%s#%ld#%ld#%ld\n",
-                leaderboard_players[i].name, leaderboard_players[i].win_count,
-                leaderboard_players[i].lost_count, leaderboard_players[i].draw_count);
-    }
-
-    fclose(leaderboards_fp);
-    free(leaderboard_players);
+    update_leaderboard();
 
     if (player_one_round_score > player_two_round_score)
     {
@@ -775,6 +656,131 @@ void merge_leaderboard(player_t *leaderboard_players, int left, int mid, int rig
         idx++;
         idx_r++;
     }
+}
+
+void update_leaderboard()
+{
+    FILE *leaderboards_fp = fopen(titao_game.leaderboard_file_path, "a+");
+
+    // If the file is empty then we can assume that it is the first time the user is playing
+    // and we can write the player's name and score to the file
+    if (fgetc(leaderboards_fp) == EOF)
+    {
+        puts("EMPTY");
+        fprintf(leaderboards_fp, "%s#%ld#%ld#%ld\n", player_one.name, player_one.win_count, player_one.lost_count, player_one.draw_count);
+        fprintf(leaderboards_fp, "%s#%ld#%ld#%ld\n", player_two.name, player_two.win_count, player_two.lost_count, player_two.draw_count);
+        fclose(leaderboards_fp);
+        return;
+    }
+
+    unsigned int lines = leaderboard_size(leaderboards_fp);
+
+    player_t *leaderboard_players = (player_t *)malloc(lines * sizeof(player_t));
+    if (leaderboard_players == NULL)
+    {
+        puts("Error allocating memory");
+        return;
+    }
+
+    // Rewind the file pointer to the beginning of the file
+    rewind(leaderboards_fp);
+
+    // Set all values to 0
+    memset(leaderboard_players, 0, sizeof(player_t) * lines);
+
+    int i = 0;
+    while (fscanf(leaderboards_fp, "%[^#]#%ld#%ld#%ld\n",
+                  leaderboard_players[i].name, &leaderboard_players[i].win_count,
+                  &leaderboard_players[i].lost_count, &leaderboard_players[i].draw_count) != EOF)
+    {
+        i++;
+    }
+
+    int found_player_one = -1;
+    int found_player_two = -1;
+    for (int i = 0; i < lines; i++)
+    {
+        if (strcmp(player_one.name, leaderboard_players[i].name) == 0)
+        {
+            leaderboard_players[i].win_count += player_one.win_count;
+            leaderboard_players[i].lost_count += player_one.lost_count;
+            leaderboard_players[i].draw_count += player_one.draw_count;
+            found_player_one = 1;
+        }
+        else if (strcmp(player_two.name, leaderboard_players[i].name) == 0)
+        {
+            leaderboard_players[i].win_count += player_two.win_count;
+            leaderboard_players[i].lost_count += player_two.lost_count;
+            leaderboard_players[i].draw_count += player_two.draw_count;
+            found_player_two = 1;
+        }
+    }
+
+    if (found_player_one == -1)
+    {
+        lines++;
+    }
+    if (found_player_two == -1)
+    {
+        lines++;
+    }
+
+    // Increase the size of the array by the amount of new lines
+    leaderboard_players = (player_t *)realloc(leaderboard_players, sizeof(player_t) * lines);
+
+    if (found_player_one == -1 && found_player_two == -1)
+    {
+        player_t tmp_player;
+        strcpy(tmp_player.name, player_one.name);
+        tmp_player.win_count = player_one.win_count;
+        tmp_player.lost_count = player_one.lost_count;
+        tmp_player.draw_count = player_one.draw_count;
+        leaderboard_players[lines - 1] = tmp_player;
+
+        strcpy(tmp_player.name, player_two.name);
+        tmp_player.win_count = player_two.win_count;
+        tmp_player.lost_count = player_two.lost_count;
+        tmp_player.draw_count = player_two.draw_count;
+        leaderboard_players[lines - 2] = tmp_player;
+    }
+    else if (found_player_one == -1)
+    {
+        player_t tmp_player;
+        strcpy(tmp_player.name, player_one.name);
+        tmp_player.win_count = player_one.win_count;
+        tmp_player.lost_count = player_one.lost_count;
+        tmp_player.draw_count = player_one.draw_count;
+        leaderboard_players[lines - 1] = tmp_player;
+    }
+    else if (found_player_two == -1)
+    {
+        player_t tmp_player;
+        strcpy(tmp_player.name, player_two.name);
+        tmp_player.win_count = player_two.win_count;
+        tmp_player.lost_count = player_two.lost_count;
+        tmp_player.draw_count = player_two.draw_count;
+        leaderboard_players[lines - 1] = tmp_player;
+    }
+
+    // Sort the array by wins and descending by default
+    sort_leaderboard(leaderboard_players, 0, lines - 1, 2, 1);
+
+    // Rewind the file pointer to the beginning of the file
+    rewind(leaderboards_fp);
+
+    // Truncate the file and write the new data
+    freopen(titao_game.leaderboard_file_path, "w", leaderboards_fp);
+
+    // Write the new leaderboard to the file
+    for (int i = 0; i < lines; i++)
+    {
+        fprintf(leaderboards_fp, "%s#%ld#%ld#%ld\n",
+                leaderboard_players[i].name, leaderboard_players[i].win_count,
+                leaderboard_players[i].lost_count, leaderboard_players[i].draw_count);
+    }
+
+    fclose(leaderboards_fp);
+    free(leaderboard_players);
 }
 
 void sleep_ms(int milliseconds)
