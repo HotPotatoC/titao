@@ -10,17 +10,17 @@
 
 struct TitaoGame
 {
-    unsigned int max_rounds;
     int board[3][3];
+    unsigned int max_rounds;
     const char *leaderboard_file_path;
 } titao_game = {
-    .max_rounds = 5,
-    .board = {
+    {
         {0, 0, 0},
         {0, 0, 0},
         {0, 0, 0},
     },
-    .leaderboard_file_path = "leaderboard.txt",
+    5,
+    "leaderboard.txt",
 };
 
 typedef struct Player
@@ -29,17 +29,8 @@ typedef struct Player
     long int win_count, lost_count, draw_count;
 } player_t;
 
-player_t player_one = {
-    .win_count = 0,
-    .lost_count = 0,
-    .draw_count = 0,
-};
-
-player_t player_two = {
-    .win_count = 0,
-    .lost_count = 0,
-    .draw_count = 0,
-};
+player_t player_one = {0, 0, 0};
+player_t player_two = {0, 0, 0};
 
 void menu_play();
 void menu_leaderboard();
