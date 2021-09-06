@@ -2,6 +2,12 @@
 #include <string.h>
 #include <stdlib.h>
 
+#ifdef _WIN32
+#include <windows.h>
+#elif __linux__
+#include <unistd.h>
+#endif
+
 struct TitaoGame
 {
     unsigned int max_rounds;
@@ -49,11 +55,18 @@ int board_insert_at(int row, int column, int value);
 
 void reset_players();
 
+unsigned int leaderboard_size(FILE *fp);
+void sort_leaderboard(player_t *leaderboard_players, int left, int right, int option, int descending);
+void merge_leaderboard(player_t *leaderboard_players, int left, int mid, int right, int option, int descending);
+
+void sleep_ms(int milliseconds);
+
 int main()
 {
     int option;
     do
     {
+        system("cls||clear");
         puts("\t\t\t*~*~*~*~*~* Titao *~*~*~*~*~*~");
         puts("\t\t\t~         Main Menu          *");
         puts("\t\t\t*  1. Play                   ~");
@@ -83,7 +96,7 @@ int main()
 void menu_play()
 {
     int rounds;
-    // system("cls||clear");
+    system("cls||clear");
 
 input_player_one:
     printf("Input nama player 1 (X): ");
@@ -115,14 +128,13 @@ input_round:
         goto input_round;
     }
 
+    int winner = 0;
+    int player_one_round_score = 0;
+    int player_two_round_score = 0;
     for (int current_round = 1; current_round <= rounds; current_round++)
     {
-        int winner = 0;
         int current_move = 1;
         printf("Round %d\n", current_round);
-
-        int player_one_round_score = 0;
-        int player_two_round_score = 0;
         do
         {
         reset_round:
@@ -143,8 +155,10 @@ input_round:
                     strcpy(current_player, player_two.name);
                 }
 
-                // system("cls||clear");
+                system("cls||clear");
                 printf("==== %s Menang Ronde %d ====\n\n", current_player, current_round);
+                printf("%s: %d\n", player_one.name, player_one_round_score);
+                printf("%s: %d\n", player_two.name, player_two_round_score);
                 break;
             }
 
@@ -202,7 +216,7 @@ input_round:
             player_two.win_count++;
             player_one.lost_count++;
         }
-        else
+        else if (player_one_round_score == player_two_round_score)
         {
             player_one.draw_count++;
             player_two.draw_count++;
@@ -212,7 +226,6 @@ input_round:
     // Save to leaderboards
     FILE *leaderboards_fp = fopen(titao_game.leaderboard_file_path, "a+");
 
-    // Determines if the file is empty https://stackoverflow.com/a/13566193/12472142
     // If the file is empty then we can assume that it is the first time the user is playing
     // and we can write the player's name and score to the file
     if (fgetc(leaderboards_fp) == EOF)
@@ -224,17 +237,7 @@ input_round:
         return;
     }
 
-    unsigned int lines = 0;
-
-    // Get amount of lines in a file https://www.geeksforgeeks.org/c-program-count-number-lines-file/
-    for (char tmp_c = getc(leaderboards_fp); tmp_c != EOF; tmp_c = getc(leaderboards_fp))
-    {
-        // Increment lines if the current character is newline
-        if (tmp_c == '\n')
-        {
-            lines++;
-        }
-    }
+    unsigned int lines = leaderboard_size(leaderboards_fp);
 
     player_t *leaderboard_players = (player_t *)malloc(lines * sizeof(player_t));
     if (leaderboard_players == NULL)
@@ -257,6 +260,8 @@ input_round:
         i++;
     }
 
+    int found_player_one = -1;
+    int found_player_two = -1;
     for (int i = 0; i < lines; i++)
     {
         if (strcmp(player_one.name, leaderboard_players[i].name) == 0)
@@ -264,64 +269,182 @@ input_round:
             leaderboard_players[i].win_count += player_one.win_count;
             leaderboard_players[i].lost_count += player_one.lost_count;
             leaderboard_players[i].draw_count += player_one.draw_count;
+            found_player_one = 1;
         }
         else if (strcmp(player_two.name, leaderboard_players[i].name) == 0)
         {
             leaderboard_players[i].win_count += player_two.win_count;
             leaderboard_players[i].lost_count += player_two.lost_count;
             leaderboard_players[i].draw_count += player_two.draw_count;
+            found_player_two = 1;
         }
     }
 
-    // Increase the leaderboard_players array size by 2
-    player_t *new_leaderboard_players = (player_t *)realloc(leaderboard_players, (lines + 2) * sizeof(player_t));
-    if (new_leaderboard_players == NULL)
+    if (found_player_one == -1)
     {
-        puts("Error allocating memory");
-        return;
+        lines++;
+    }
+    if (found_player_two == -1)
+    {
+        lines++;
     }
 
-    // Copy the old leaderboard_players array to the new one
-    memcpy(new_leaderboard_players, leaderboard_players, sizeof(player_t) * lines + 2);
+    // Increase the size of the array by the amount of new lines
+    leaderboard_players = (player_t *)realloc(leaderboard_players, sizeof(player_t) * lines);
 
-    // Insert the new players to the new leaderboard
-    new_leaderboard_players[lines].win_count = player_one.win_count;
-    new_leaderboard_players[lines].lost_count = player_one.lost_count;
-    new_leaderboard_players[lines].draw_count = player_one.draw_count;
-    strcpy(new_leaderboard_players[lines].name, player_one.name);
-
-    new_leaderboard_players[lines + 1].win_count = player_two.win_count;
-    new_leaderboard_players[lines + 1].lost_count = player_two.lost_count;
-    new_leaderboard_players[lines + 1].draw_count = player_two.draw_count;
-    strcpy(new_leaderboard_players[lines + 1].name, player_two.name);
-
-    // print the new leaderboard
-    for (int i = 0; i < lines + 2; i++)
+    if (found_player_one == -1 && found_player_two == -1)
     {
-        printf("%s#%ld#%ld#%ld\n", new_leaderboard_players[i].name, new_leaderboard_players[i].win_count, new_leaderboard_players[i].lost_count, new_leaderboard_players[i].draw_count);
+        player_t tmp_player;
+        strcpy(tmp_player.name, player_one.name);
+        tmp_player.win_count = player_one.win_count;
+        tmp_player.lost_count = player_one.lost_count;
+        tmp_player.draw_count = player_one.draw_count;
+        leaderboard_players[lines - 1] = tmp_player;
+
+        strcpy(tmp_player.name, player_two.name);
+        tmp_player.win_count = player_two.win_count;
+        tmp_player.lost_count = player_two.lost_count;
+        tmp_player.draw_count = player_two.draw_count;
+        leaderboard_players[lines - 2] = tmp_player;
+    }
+    else if (found_player_one == -1)
+    {
+        player_t tmp_player;
+        strcpy(tmp_player.name, player_one.name);
+        tmp_player.win_count = player_one.win_count;
+        tmp_player.lost_count = player_one.lost_count;
+        tmp_player.draw_count = player_one.draw_count;
+        leaderboard_players[lines - 1] = tmp_player;
+    }
+    else if (found_player_two == -1)
+    {
+        player_t tmp_player;
+        strcpy(tmp_player.name, player_two.name);
+        tmp_player.win_count = player_two.win_count;
+        tmp_player.lost_count = player_two.lost_count;
+        tmp_player.draw_count = player_two.draw_count;
+        leaderboard_players[lines - 1] = tmp_player;
     }
 
-    // Rewrite the file with the new leaderboard
-    for (int i = 0; i < lines + 2; i++)
+    // Sort the array by wins and descending by default
+    sort_leaderboard(leaderboard_players, 0, lines - 1, 2, 1);
+
+    // Rewind the file pointer to the beginning of the file
+    rewind(leaderboards_fp);
+
+    // Truncate the file and write the new data
+    freopen(titao_game.leaderboard_file_path, "w", leaderboards_fp);
+
+    // Write the new leaderboard to the file
+    for (int i = 0; i < lines; i++)
     {
         fprintf(leaderboards_fp, "%s#%ld#%ld#%ld\n",
-                new_leaderboard_players[i].name, new_leaderboard_players[i].win_count,
-                new_leaderboard_players[i].lost_count, new_leaderboard_players[i].draw_count);
+                leaderboard_players[i].name, leaderboard_players[i].win_count,
+                leaderboard_players[i].lost_count, leaderboard_players[i].draw_count);
     }
 
-    free(new_leaderboard_players);
-    // truncate the file to the 0
     fclose(leaderboards_fp);
+    free(leaderboard_players);
 
-    // Reset player one and player two
+    if (player_one_round_score > player_two_round_score)
+    {
+        printf("%s wins the game!\n", player_one.name);
+    }
+
+    if (player_one_round_score < player_two_round_score)
+    {
+        printf("%s wins the game!\n", player_two.name);
+    }
+
+    if (player_one_round_score == player_two_round_score)
+    {
+        printf("The game is a draw!\n");
+    }
+
     reset_players();
+    printf("\nGoing back to the main menu... (4s)\n");
+    sleep_ms(4000);
 }
 
 void menu_leaderboard()
 {
-    puts("\t\t\t*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~");
-    puts("\t\t\t~   Ini menu leaderboard!   *");
-    puts("\t\t\t*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~");
+    FILE *leaderboards_fp = fopen(titao_game.leaderboard_file_path, "r");
+    if (leaderboards_fp == NULL)
+    {
+        puts("Leaderboard is still empty");
+        return;
+    }
+
+    int i = 0;
+    int size = leaderboard_size(leaderboards_fp);
+    rewind(leaderboards_fp);
+
+    player_t *leaderboard_players = (player_t *)malloc(sizeof(player_t) * size);
+
+    int total_wins = 0, total_lost = 0, total_draw = 0;
+    double average_wins = 0, average_lost = 0, average_draw = 0;
+
+    while (fscanf(leaderboards_fp, "%[^#]#%ld#%ld#%ld\n",
+                  leaderboard_players[i].name, &leaderboard_players[i].win_count,
+                  &leaderboard_players[i].lost_count, &leaderboard_players[i].draw_count) != EOF)
+    {
+        total_wins += leaderboard_players[i].win_count;
+        total_lost += leaderboard_players[i].lost_count;
+        total_draw += leaderboard_players[i].draw_count;
+        i++;
+    }
+
+    average_wins = (double)total_wins / (double)size;
+    average_lost = (double)total_lost / (double)size;
+    average_draw = (double)total_draw / (double)size;
+
+    short int option, descending = 0;
+
+    do
+    {
+        system("cls||clear");
+        puts("\t\t\t*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~");
+        puts("\t\t\t~         Leaderboard        *");
+        puts("\t\t\t*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~");
+
+        printf("Total wins: %d\n", total_wins);
+        printf("Total lost: %d\n", total_lost);
+        printf("Total draw: %d\n", total_draw);
+        printf("Average wins: %.2f\n", average_wins);
+        printf("Average lost: %.2f\n", average_lost);
+        printf("Average draw: %.2f\n\n\n", average_draw);
+
+        printf("\t%s\t\t\t%s\t\t\t%s\t\t\t%s\n", "Name", "Wins", "Losses", "Draws");
+        printf("\t%s\t\t\t%s\t\t\t%s\t\t\t%s\n", "----", "----", "------", "------");
+
+        for (int i = 0; i < size; i++)
+        {
+            printf("%d)\t%s\t\t\t%ld\t\t\t%ld\t\t\t%ld\n", i + 1,
+                   leaderboard_players[i].name, leaderboard_players[i].win_count,
+                   leaderboard_players[i].lost_count, leaderboard_players[i].draw_count);
+        }
+
+        puts("\n\n1. Sort by name");
+        puts("2. Sort by wins");
+        puts("3. Sort by losses");
+        puts("4. Sort by draws");
+        puts("5. Back");
+        printf("\n\nSelect menu: ");
+        scanf("%hd", &option);
+
+        switch (option)
+        {
+        case 1:
+        case 2:
+        case 3:
+        case 4:
+            puts("\n\n1. Ascending");
+            puts("2. Descending");
+            printf("\n\n Select menu: ");
+            scanf("%hd", &descending);
+            sort_leaderboard(leaderboard_players, 0, size - 1, option, descending - 1);
+        };
+    } while (option != 5);
 }
 
 void menu_exit()
@@ -407,7 +530,6 @@ int board_position_is_empty(int row, int column)
 
 int board_insert_at(int row, int column, int value)
 {
-    printf("Value: %d\n", value);
     if (!board_position_is_empty(row, column))
     {
         return -1;
@@ -434,4 +556,217 @@ void reset_players()
 {
     memset(&player_one, 0, sizeof(player_t));
     memset(&player_two, 0, sizeof(player_t));
+}
+
+// Counts the number of lines in a file
+unsigned int leaderboard_size(FILE *fp)
+{
+    unsigned int lines = 0;
+
+    // Get amount of lines in a file https://www.geeksforgeeks.org/c-program-count-number-lines-file/
+    for (char tmp_c = getc(fp); tmp_c != EOF; tmp_c = getc(fp))
+    {
+        // Increment lines if the current character is newline
+        if (tmp_c == '\n')
+        {
+            lines++;
+        }
+    }
+
+    return lines;
+}
+
+// Option 1 = sort by name
+// Option 2 = sort by wins
+// Option 3 = sort by losses
+// Option 4 = sort by draws
+void sort_leaderboard(player_t *leaderboard_players, int left, int right, int option, int descending)
+{
+    if (left >= right)
+    {
+        return;
+    }
+
+    int mid = (left + right) / 2;
+
+    sort_leaderboard(leaderboard_players, left, mid, option, descending);
+    sort_leaderboard(leaderboard_players, mid + 1, right, option, descending);
+
+    merge_leaderboard(leaderboard_players, left, mid, right, option, descending);
+}
+
+void merge_leaderboard(player_t *leaderboard_players, int left, int mid, int right, int option, int descending)
+{
+    int left_partition_size = mid - left + 1;
+    int right_partition_size = right - mid;
+
+    player_t left_partition[left_partition_size];
+    player_t right_partition[right_partition_size];
+
+    for (int i = 0; i < left_partition_size; i++)
+    {
+        left_partition[i] = leaderboard_players[left + i];
+    }
+
+    for (int i = 0; i < right_partition_size; i++)
+    {
+        right_partition[i] = leaderboard_players[mid + 1 + i];
+    }
+
+    int idx = left;
+    int idx_l = 0;
+    int idx_r = 0;
+    while (idx_l < left_partition_size && idx_r < right_partition_size)
+    {
+        if (option == 1 && descending)
+        {
+            if (strcmp(left_partition[idx_l].name, right_partition[idx_r].name) > 0)
+            {
+                leaderboard_players[idx] = left_partition[idx_l];
+                idx++;
+                idx_l++;
+            }
+            else
+            {
+                leaderboard_players[idx] = right_partition[idx_r];
+                idx++;
+                idx_r++;
+            }
+        }
+
+        if (option == 1 && !descending)
+        {
+            if (strcmp(left_partition[idx_l].name, right_partition[idx_r].name) < 0)
+            {
+                leaderboard_players[idx] = left_partition[idx_l];
+                idx++;
+                idx_l++;
+            }
+            else
+            {
+                leaderboard_players[idx] = right_partition[idx_r];
+                idx++;
+                idx_r++;
+            }
+        }
+
+        if (option == 2 && descending)
+        {
+            if (left_partition[idx_l].win_count > right_partition[idx_r].win_count)
+            {
+                leaderboard_players[idx] = left_partition[idx_l];
+                idx++;
+                idx_l++;
+            }
+            else
+            {
+                leaderboard_players[idx] = right_partition[idx_r];
+                idx++;
+                idx_r++;
+            }
+        }
+
+        if (option == 2 && !descending)
+        {
+            if (left_partition[idx_l].win_count < right_partition[idx_r].win_count)
+            {
+                leaderboard_players[idx] = left_partition[idx_l];
+                idx++;
+                idx_l++;
+            }
+            else
+            {
+                leaderboard_players[idx] = right_partition[idx_r];
+                idx++;
+                idx_r++;
+            }
+        }
+
+        if (option == 3 && descending)
+        {
+            if (left_partition[idx_l].lost_count > right_partition[idx_r].lost_count)
+            {
+                leaderboard_players[idx] = left_partition[idx_l];
+                idx++;
+                idx_l++;
+            }
+            else
+            {
+                leaderboard_players[idx] = right_partition[idx_r];
+                idx++;
+                idx_r++;
+            }
+        }
+
+        if (option == 3 && !descending)
+        {
+            if (left_partition[idx_l].lost_count < right_partition[idx_r].lost_count)
+            {
+                leaderboard_players[idx] = left_partition[idx_l];
+                idx++;
+                idx_l++;
+            }
+            else
+            {
+                leaderboard_players[idx] = right_partition[idx_r];
+                idx++;
+                idx_r++;
+            }
+        }
+
+        if (option == 4 && descending)
+        {
+            if (left_partition[idx_l].draw_count > right_partition[idx_r].draw_count)
+            {
+                leaderboard_players[idx] = left_partition[idx_l];
+                idx++;
+                idx_l++;
+            }
+            else
+            {
+                leaderboard_players[idx] = right_partition[idx_r];
+                idx++;
+                idx_r++;
+            }
+        }
+
+        if (option == 4 && !descending)
+        {
+            if (left_partition[idx_l].draw_count < right_partition[idx_r].draw_count)
+            {
+                leaderboard_players[idx] = left_partition[idx_l];
+                idx++;
+                idx_l++;
+            }
+            else
+            {
+                leaderboard_players[idx] = right_partition[idx_r];
+                idx++;
+                idx_r++;
+            }
+        }
+    }
+
+    while (idx_l < left_partition_size)
+    {
+        leaderboard_players[idx] = left_partition[idx_l];
+        idx++;
+        idx_l++;
+    }
+
+    while (idx_r < right_partition_size)
+    {
+        leaderboard_players[idx] = right_partition[idx_r];
+        idx++;
+        idx_r++;
+    }
+}
+
+void sleep_ms(int milliseconds)
+{
+#ifdef _WIN32
+    Sleep(milliseconds);
+#else
+    usleep(milliseconds * 1000);
+#endif
 }
