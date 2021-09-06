@@ -459,14 +459,10 @@ unsigned int leaderboard_size(FILE *fp)
 {
     unsigned int lines = 0;
 
-    // Get amount of lines in a file https://www.geeksforgeeks.org/c-program-count-number-lines-file/
-    for (char tmp_c = getc(fp); tmp_c != EOF; tmp_c = getc(fp))
+    while (fgetc(fp) != EOF)
     {
-        // Increment lines if the current character is newline
-        if (tmp_c == '\n')
-        {
+        if (fgetc(fp) == '\n')
             lines++;
-        }
     }
 
     return lines;
