@@ -50,6 +50,7 @@ void reset_players();
 unsigned int leaderboard_size(FILE *fp);
 void sort_leaderboard(player_t *leaderboard_players, int left, int right, int option, int descending);
 void merge_leaderboard(player_t *leaderboard_players, int left, int mid, int right, int option, int descending);
+int search_leaderboard(player_t *leaderboard_players, int n, char name[101]);
 void update_leaderboard();
 
 void sleep_ms(int milliseconds);
@@ -253,6 +254,8 @@ input_round:
 
 void menu_leaderboard()
 {
+
+leaderboard:
     FILE *leaderboards_fp = fopen(titao_game.leaderboard_file_path, "r");
     if (leaderboards_fp == NULL)
     {
@@ -287,7 +290,6 @@ void menu_leaderboard()
 
     do
     {
-    leaderboard:
         system("cls||clear");
         puts("\t\t\t*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~");
         puts("\t\t\t~         Leaderboard        *");
@@ -314,7 +316,8 @@ void menu_leaderboard()
         puts("2. Sort by wins");
         puts("3. Sort by losses");
         puts("4. Sort by draws");
-        puts("5. Back");
+        puts("5. Search by name");
+        puts("6. Back");
         printf("\n\nSelect menu: ");
         scanf("%hd", &option);
 
@@ -334,8 +337,45 @@ void menu_leaderboard()
                 goto leaderboard;
             }
             sort_leaderboard(leaderboard_players, 0, size - 1, option, descending - 1);
-        };
-    } while (option != 5);
+            break;
+        case 5:
+        leaderboard_search:
+            printf("\n\nSearch: ");
+            char search[101];
+            scanf("%s", search);
+            // Sort by name first
+            sort_leaderboard(leaderboard_players, 0, size - 1, 1, 0);
+            int idx = search_leaderboard(leaderboard_players, size, search);
+            if (idx == -1)
+            {
+                puts("\n\nPlayer not found.");
+                goto leaderboard_search;
+            }
+            else
+            {
+
+                printf("\t%s\t\t\t%s\t\t\t%s\t\t\t%s\n", "Name", "Wins", "Losses", "Draws");
+                printf("\t%s\t\t\t%s\t\t\t%s\t\t\t%s\n", "----", "----", "------", "------");
+                printf("%d)\t%s\t\t\t%ld\t\t\t%ld\t\t\t%ld\n\n\n", idx + 1,
+                       leaderboard_players[idx].name, leaderboard_players[idx].win_count,
+                       leaderboard_players[idx].lost_count, leaderboard_players[idx].draw_count);
+
+                puts("1. Search again");
+                puts("2. Back");
+                printf("\n\nSelect menu: ");
+                scanf("%hd", &option);
+                if (option == 1)
+                {
+                    goto leaderboard_search;
+                }
+                else if (option == 2)
+                {
+                    goto leaderboard;
+                }
+            }
+            break;
+        }
+    } while (option != 6);
 }
 
 void menu_exit()
@@ -459,10 +499,14 @@ unsigned int leaderboard_size(FILE *fp)
 {
     unsigned int lines = 0;
 
-    while (fgetc(fp) != EOF)
+    // Get amount of lines in a file https://www.geeksforgeeks.org/c-program-count-number-lines-file/
+    for (char tmp_c = getc(fp); tmp_c != EOF; tmp_c = getc(fp))
     {
-        if (fgetc(fp) == '\n')
+        // Increment lines if the current character is newline
+        if (tmp_c == '\n')
+        {
             lines++;
+        }
     }
 
     return lines;
@@ -652,6 +696,30 @@ void merge_leaderboard(player_t *leaderboard_players, int left, int mid, int rig
         idx++;
         idx_r++;
     }
+}
+
+int search_leaderboard(player_t *leaderboard_players, int n, char name[101])
+{
+    int min = 0, max = n - 1;
+    while (min <= max)
+    {
+        int mid = (min + max) / 2;
+
+        if (strcmp(name, leaderboard_players[mid].name) < 0)
+        {
+            max = mid - 1;
+        }
+
+        else if (strcmp(name, leaderboard_players[mid].name) > 0)
+        {
+            min = mid + 1;
+        }
+        else
+        {
+            return mid;
+        }
+    }
+    return -1;
 }
 
 void update_leaderboard()
