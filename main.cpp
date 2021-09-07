@@ -52,6 +52,7 @@ void sort_leaderboard(player_t *leaderboard_players, int left, int right, int op
 void merge_leaderboard(player_t *leaderboard_players, int left, int mid, int right, int option, int descending);
 int search_leaderboard(player_t *leaderboard_players, int n, char name[101]);
 void update_leaderboard();
+void remove_player_from_leaderboard(char name[101]);
 
 void sleep_ms(int milliseconds);
 
@@ -317,7 +318,8 @@ leaderboard:
         puts("3. Sort by losses");
         puts("4. Sort by draws");
         puts("5. Search by name");
-        puts("6. Back");
+        puts("6. Remove player");
+        puts("7. Back");
         printf("\n\nSelect menu: ");
         scanf("%hd", &option);
 
@@ -327,6 +329,7 @@ leaderboard:
         case 2:
         case 3:
         case 4:
+        {
             puts("\n\n1. Ascending");
             puts("2. Descending");
             puts("3. Back");
@@ -338,15 +341,17 @@ leaderboard:
             }
             sort_leaderboard(leaderboard_players, 0, size - 1, option, descending - 1);
             break;
+        }
         case 5:
+        {
         leaderboard_search:
             printf("\n\nSearch: ");
             char search[101];
             scanf("%s", search);
             // Sort by name first
             sort_leaderboard(leaderboard_players, 0, size - 1, 1, 0);
-            int idx = search_leaderboard(leaderboard_players, size, search);
-            if (idx == -1)
+            int idx_of_player = search_leaderboard(leaderboard_players, size, search);
+            if (idx_of_player == -1)
             {
                 puts("\n\nPlayer not found.");
                 goto leaderboard_search;
@@ -356,9 +361,9 @@ leaderboard:
 
                 printf("\t%s\t\t\t%s\t\t\t%s\t\t\t%s\n", "Name", "Wins", "Losses", "Draws");
                 printf("\t%s\t\t\t%s\t\t\t%s\t\t\t%s\n", "----", "----", "------", "------");
-                printf("%d)\t%s\t\t\t%ld\t\t\t%ld\t\t\t%ld\n\n\n", idx + 1,
-                       leaderboard_players[idx].name, leaderboard_players[idx].win_count,
-                       leaderboard_players[idx].lost_count, leaderboard_players[idx].draw_count);
+                printf("%d)\t%s\t\t\t%ld\t\t\t%ld\t\t\t%ld\n\n\n", idx_of_player + 1,
+                       leaderboard_players[idx_of_player].name, leaderboard_players[idx_of_player].win_count,
+                       leaderboard_players[idx_of_player].lost_count, leaderboard_players[idx_of_player].draw_count);
 
                 puts("1. Search again");
                 puts("2. Back");
@@ -375,7 +380,40 @@ leaderboard:
             }
             break;
         }
-    } while (option != 6);
+        case 6:
+        {
+        leaderboard_remove:
+            printf("\n\nRemove: ");
+            char remove[101];
+            scanf("%s", remove);
+            // Sort by name first
+            sort_leaderboard(leaderboard_players, 0, size - 1, 1, 0);
+            int idx_to_remove = search_leaderboard(leaderboard_players, size, remove);
+            if (idx_to_remove == -1)
+            {
+                puts("\n\nPlayer not found.");
+                goto leaderboard_remove;
+            }
+            else
+            {
+                puts("\n\nAre you sure you want to remove this player? (y/n)");
+                char confirm;
+                scanf("\n%c", &confirm);
+                if (confirm == 'y')
+                {
+                    remove_player_from_leaderboard(remove);
+                    puts("\n\nPlayer removed.");
+                }
+                else
+                {
+                    puts("\n\nPlayer not removed.");
+                }
+                goto leaderboard;
+            }
+            break;
+        }
+        }
+    } while (option != 7);
 }
 
 void menu_exit()
@@ -837,6 +875,75 @@ void update_leaderboard()
 
     // Write the new leaderboard to the file
     for (int i = 0; i < lines; i++)
+    {
+        fprintf(leaderboards_fp, "%s#%ld#%ld#%ld\n",
+                leaderboard_players[i].name, leaderboard_players[i].win_count,
+                leaderboard_players[i].lost_count, leaderboard_players[i].draw_count);
+    }
+
+    fclose(leaderboards_fp);
+    free(leaderboard_players);
+}
+
+void remove_player_from_leaderboard(char name[101])
+{
+    FILE *leaderboards_fp = fopen(titao_game.leaderboard_file_path, "a+");
+    if (leaderboards_fp == NULL)
+    {
+        puts("Error opening file");
+        return;
+    }
+
+    unsigned int lines = leaderboard_size(leaderboards_fp);
+
+    player_t *leaderboard_players = (player_t *)malloc(lines * sizeof(player_t));
+    if (leaderboard_players == NULL)
+    {
+        puts("Error allocating memory");
+        return;
+    }
+
+    // Rewind the file pointer to the beginning of the file
+    rewind(leaderboards_fp);
+
+    // Set all values to 0
+    memset(leaderboard_players, 0, sizeof(player_t) * lines);
+
+    int i = 0;
+    while (fscanf(leaderboards_fp, "%[^#]#%ld#%ld#%ld\n",
+                  leaderboard_players[i].name, &leaderboard_players[i].win_count,
+                  &leaderboard_players[i].lost_count, &leaderboard_players[i].draw_count) != EOF)
+    {
+        i++;
+    }
+
+    sort_leaderboard(leaderboard_players, 0, lines - 1, 1, 0);
+
+    int idx = search_leaderboard(leaderboard_players, lines, name);
+
+    if (idx == -1)
+    {
+        puts("Player not found");
+        return;
+    }
+
+    // Remove the player in the array
+    for (int i = idx; i < lines - 1; i++)
+    {
+        leaderboard_players[i] = leaderboard_players[i + 1];
+    }
+
+    // Decrease the size of the array by 1
+    leaderboard_players = (player_t *)realloc(leaderboard_players, sizeof(player_t) * (lines - 1));
+
+    // Rewind the file pointer to the beginning of the file
+    rewind(leaderboards_fp);
+
+    // Truncate the file and write the new data
+    freopen(titao_game.leaderboard_file_path, "w", leaderboards_fp);
+
+    // Write the new leaderboard to the file
+    for (int i = 0; i < lines - 1; i++)
     {
         fprintf(leaderboards_fp, "%s#%ld#%ld#%ld\n",
                 leaderboard_players[i].name, leaderboard_players[i].win_count,
