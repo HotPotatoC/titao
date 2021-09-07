@@ -177,7 +177,7 @@ input_round:
             {
                 if (board_insert_at(0, position - 1, current_move % 2 != 0 ? -1 : 1) == -1)
                 {
-                    puts("Posisi sudah terisi");
+                    puts("\n\n!! Posisi sudah terisi !!");
                     goto reset_round;
                 }
             }
@@ -185,7 +185,7 @@ input_round:
             {
                 if (board_insert_at(1, position - 4, current_move % 2 != 0 ? -1 : 1) == -1)
                 {
-                    puts("Posisi sudah terisi");
+                    puts("\n\n!! Posisi sudah terisi !!");
                     goto reset_round;
                 }
             }
@@ -193,7 +193,7 @@ input_round:
             {
                 if (board_insert_at(2, position - 7, current_move % 2 != 0 ? -1 : 1) == -1)
                 {
-                    puts("Posisi sudah terisi");
+                    puts("\n\n!! Posisi sudah terisi !!");
                     goto reset_round;
                 }
             }
