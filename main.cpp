@@ -25,7 +25,7 @@ struct TitaoGame
 
 typedef struct Player
 {
-    char name[101];
+    char name[51];
     long int win_count, lost_count, draw_count;
 } player_t;
 
@@ -50,19 +50,25 @@ void reset_players();
 unsigned int leaderboard_size(FILE *fp);
 void sort_leaderboard(player_t *leaderboard_players, int left, int right, int option, int descending);
 void merge_leaderboard(player_t *leaderboard_players, int left, int mid, int right, int option, int descending);
-int search_leaderboard(player_t *leaderboard_players, int n, char name[101]);
+int search_leaderboard(player_t *leaderboard_players, int n, char name[51]);
 void update_leaderboard();
-void remove_player_from_leaderboard(char name[101]);
+void remove_player_from_leaderboard(char name[51]);
 
 void sleep_ms(int milliseconds);
 
 int main()
 {
-    short int option;
+    int option;
     do
     {
         system("cls||clear");
-        puts("\t\t\t*~*~*~*~*~* Titao *~*~*~*~*~*~");
+        puts("\t\t████████╗██╗████████╗ █████╗  █████╗ ");
+        puts("\t\t╚══██╔══╝██║╚══██╔══╝██╔══██╗██╔══██╗");
+        puts("\t\t   ██║   ██║   ██║   ███████║██║  ██║");
+        puts("\t\t   ██║   ██║   ██║   ██╔══██║██║  ██║");
+        puts("\t\t   ██║   ██║   ██║   ██║  ██║╚█████╔╝");
+        puts("\t\t   ╚═╝   ╚═╝   ╚═╝   ╚═╝  ╚═╝ ╚════╝ \n\n");
+        puts("\t\t\t*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~");
         puts("\t\t\t~         Main Menu          *");
         puts("\t\t\t*  1. Play                   ~");
         puts("\t\t\t~  2. Leaderboard            *");
@@ -70,7 +76,7 @@ int main()
         puts("\t\t\t~                            *");
         puts("\t\t\t*~*~*~*~*~*~*~*~*~*~*~*~*~*~*~\n\n\n");
         printf("Select menu: ");
-        scanf("%hd", &option);
+        scanf("%d", &option);
         puts("");
         switch (option)
         {
@@ -82,6 +88,10 @@ int main()
             break;
         case 3:
             menu_exit();
+            break;
+        default:
+            puts("Invalid option. Try again. (1s)");
+            sleep_ms(1000);
             break;
         }
     } while (option != 3);
@@ -95,22 +105,28 @@ void menu_play()
 
 input_player_one:
     printf("Input nama player 1 (X): ");
-    scanf("%s", player_one.name);
+    scanf("\n%[^\n]s", player_one.name);
 
-    if (strlen(player_one.name) > 100)
+    if (strlen(player_one.name) >= 50)
     {
-        puts("Nama player 1 terlalu panjang (max: 100)");
+        puts("Nama player 1 terlalu panjang (max: 50)");
         goto input_player_one;
     }
 
 input_player_two:
     printf("Input nama player 2 (O): ");
-    scanf("%s", player_two.name);
+    scanf("\n%[^\n]s", player_two.name);
 
-    if (strlen(player_two.name) > 100)
+    if (strlen(player_two.name) >= 50)
     {
-        puts("Nama player 2 terlalu panjang (max: 100)");
+        puts("Nama player 2 terlalu panjang (max: 50)");
         goto input_player_two;
+    }
+
+    if (strcmp(player_one.name, player_two.name) == 0)
+    {
+        puts("Nama player 1 dan player 2 tidak boleh sama");
+        goto input_player_one;
     }
 
 input_round:
@@ -173,7 +189,7 @@ input_round:
             printf("Input posisi (1-9): ");
             scanf("%d", &position);
 
-            if (position == 1 || position == 2 || position == 3)
+            if (position >= 1 && position <= 3)
             {
                 if (board_insert_at(0, position - 1, current_move % 2 != 0 ? -1 : 1) == -1)
                 {
@@ -181,7 +197,7 @@ input_round:
                     goto reset_round;
                 }
             }
-            else if (position == 4 || position == 5 || position == 6)
+            else if (position >= 4 && position <= 6)
             {
                 if (board_insert_at(1, position - 4, current_move % 2 != 0 ? -1 : 1) == -1)
                 {
@@ -189,7 +205,7 @@ input_round:
                     goto reset_round;
                 }
             }
-            else if (position == 7 || position == 8 || position == 9)
+            else if (position >= 7 && position <= 9)
             {
                 if (board_insert_at(2, position - 7, current_move % 2 != 0 ? -1 : 1) == -1)
                 {
@@ -213,44 +229,33 @@ input_round:
         } while (winner == 0);
 
         board_reset();
-        if (player_one_round_score > player_two_round_score)
-        {
-            player_one.win_count++;
-            player_two.lost_count++;
-        }
-        else if (player_one_round_score < player_two_round_score)
-        {
-            player_two.win_count++;
-            player_one.lost_count++;
-        }
-        else if (player_one_round_score == player_two_round_score)
-        {
-            player_one.draw_count++;
-            player_two.draw_count++;
-        }
+    }
+    if (player_one_round_score > player_two_round_score)
+    {
+        player_one.win_count++;
+        player_two.lost_count++;
+        printf("%s wins the game!\n", player_one.name);
+    }
+    else if (player_one_round_score < player_two_round_score)
+    {
+        player_two.win_count++;
+        player_one.lost_count++;
+        printf("%s wins the game!\n", player_two.name);
+    }
+    else if (player_one_round_score == player_two_round_score)
+    {
+        player_one.draw_count++;
+        player_two.draw_count++;
+        printf("The game is a draw!\n");
     }
 
     // Save to leaderboards
     update_leaderboard();
 
-    if (player_one_round_score > player_two_round_score)
-    {
-        printf("%s wins the game!\n", player_one.name);
-    }
-
-    if (player_one_round_score < player_two_round_score)
-    {
-        printf("%s wins the game!\n", player_two.name);
-    }
-
-    if (player_one_round_score == player_two_round_score)
-    {
-        printf("The game is a draw!\n");
-    }
-
     reset_players();
-    printf("\nGoing back to the main menu... (4s)\n");
-    sleep_ms(4000);
+    puts("\nPress enter to continue...");
+    getchar();
+    getchar();
 }
 
 void menu_leaderboard()
@@ -261,6 +266,8 @@ leaderboard:
     if (leaderboards_fp == NULL)
     {
         puts("Leaderboard is still empty");
+        puts("Going back to the main menu... (2s)");
+        sleep_ms(2000);
         return;
     }
 
@@ -347,7 +354,7 @@ leaderboard:
         leaderboard_search:
             printf("\n\nSearch: ");
             char search[101];
-            scanf("%s", search);
+            scanf("\n%[^\n]s", search);
             // Sort by name first
             sort_leaderboard(leaderboard_players, 0, size - 1, 1, 0);
             int idx_of_player = search_leaderboard(leaderboard_players, size, search);
@@ -385,7 +392,7 @@ leaderboard:
         leaderboard_remove:
             printf("\n\nRemove: ");
             char remove[101];
-            scanf("%s", remove);
+            scanf("\n%[^\n]s", remove);
             // Sort by name first
             sort_leaderboard(leaderboard_players, 0, size - 1, 1, 0);
             int idx_to_remove = search_leaderboard(leaderboard_players, size, remove);
@@ -399,7 +406,7 @@ leaderboard:
                 puts("\n\nAre you sure you want to remove this player? (y/n)");
                 char confirm;
                 scanf("\n%c", &confirm);
-                if (confirm == 'y')
+                if (confirm == 'y' || confirm == 'Y')
                 {
                     remove_player_from_leaderboard(remove);
                     puts("\n\nPlayer removed.");
@@ -736,7 +743,7 @@ void merge_leaderboard(player_t *leaderboard_players, int left, int mid, int rig
     }
 }
 
-int search_leaderboard(player_t *leaderboard_players, int n, char name[101])
+int search_leaderboard(player_t *leaderboard_players, int n, char name[51])
 {
     int min = 0, max = n - 1;
     while (min <= max)
@@ -768,7 +775,6 @@ void update_leaderboard()
     // and we can write the player's name and score to the file
     if (fgetc(leaderboards_fp) == EOF)
     {
-        puts("EMPTY");
         fprintf(leaderboards_fp, "%s#%ld#%ld#%ld\n", player_one.name, player_one.win_count, player_one.lost_count, player_one.draw_count);
         fprintf(leaderboards_fp, "%s#%ld#%ld#%ld\n", player_two.name, player_two.win_count, player_two.lost_count, player_two.draw_count);
         fclose(leaderboards_fp);
@@ -786,9 +792,6 @@ void update_leaderboard()
 
     // Rewind the file pointer to the beginning of the file
     rewind(leaderboards_fp);
-
-    // Set all values to 0
-    memset(leaderboard_players, 0, sizeof(player_t) * lines);
 
     int i = 0;
     while (fscanf(leaderboards_fp, "%[^#]#%ld#%ld#%ld\n",
@@ -885,9 +888,9 @@ void update_leaderboard()
     free(leaderboard_players);
 }
 
-void remove_player_from_leaderboard(char name[101])
+void remove_player_from_leaderboard(char name[51])
 {
-    FILE *leaderboards_fp = fopen(titao_game.leaderboard_file_path, "a+");
+    FILE *leaderboards_fp = fopen(titao_game.leaderboard_file_path, "r");
     if (leaderboards_fp == NULL)
     {
         puts("Error opening file");
@@ -905,9 +908,6 @@ void remove_player_from_leaderboard(char name[101])
 
     // Rewind the file pointer to the beginning of the file
     rewind(leaderboards_fp);
-
-    // Set all values to 0
-    memset(leaderboard_players, 0, sizeof(player_t) * lines);
 
     int i = 0;
     while (fscanf(leaderboards_fp, "%[^#]#%ld#%ld#%ld\n",
